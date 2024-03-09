@@ -1,14 +1,11 @@
-buildCmd := cargo build
-lintCmd := cargo clippy
-
 build:
-	eval "$(buildCmd)"
+	cargo build
 
 release:
-	eval "$(buildCmd) --release"
+	cargo build --release
 
 lint:
-	eval "$(lintCmd)"
+	cargo check
 
 lintfix:
-	eval "$(lintCmd) --fix"
+	cargo fmt --all -- --check
