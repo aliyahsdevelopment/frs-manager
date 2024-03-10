@@ -4,6 +4,8 @@ use std::io::{prelude::*, Cursor};
 use std::process::Command;
 use std::{fs::File, path::Path};
 use tokio::fs::create_dir;
+#[cfg(target_os = "windows")]
+use winreg::{enums::HKEY_CURRENT_USER, RegKey};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct ReleaseAsset {
@@ -32,6 +34,32 @@ pub fn get_download_path() -> Result<String, String> {
         }
     };
 }
+
+#[cfg(target_os = "windows")]
+fn update_env_path(download_path: &Path) {
+    match std::env::var("PATH") {
+        Ok(env_path) => {
+            let frs_env_path = download_path.join("bin").display().to_string();
+
+            if env_path.contains(frs_env_path.as_str()) == false {
+                let new_env_path = format!("{};{}", frs_env_path, env_path);
+                let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+                let (env, _) = hkcu.create_subkey("Environment").unwrap();
+                env.set_value("Path", &new_env_path).unwrap();
+                println!("FRS was added to the env path");
+            } else {
+                println!("FRS already exists in env path");
+            }
+        }
+
+        Err(err) => {
+            println!("Couldnt fetch windows env variables: {}", err.to_string());
+        }
+    };
+}
+
+#[cfg(not(target_os = "windows"))]
+fn update_env_path(_download_path: &Path) {}
 
 #[tokio::main]
 async fn main() {
@@ -101,6 +129,7 @@ async fn main() {
         Ok(download_data) => match raw_download_path {
             Ok(raw_download_path) => {
                 let download_path = Path::new(raw_download_path.as_str());
+                let bin_path = download_path.join("bin");
 
                 if download_path.exists() == false {
                     create_dir(download_path)
@@ -109,6 +138,15 @@ async fn main() {
                     println!("Created folder for frs-manager");
                 } else {
                     println!("Folder already exists");
+                }
+
+                if bin_path.clone().exists() == false {
+                    create_dir(bin_path.clone())
+                        .await
+                        .expect("Couldnt create bin path");
+                    println!("Created bin folder for frs-manager");
+                } else {
+                    println!("Bin folder already exists");
                 }
 
                 let version_id_path = download_path.join("version_id");
@@ -143,7 +181,7 @@ async fn main() {
                     .parse()
                     .expect("Couldnt convert version id to i32");
 
-                let frs_path = download_path.join("frs.exe");
+                let frs_path = bin_path.clone().join("frs.exe");
                 let installer_path = download_path.join("installer.exe");
 
                 if frs_path.exists() == false || current_version_value != download_data.2 {
@@ -253,6 +291,8 @@ async fn main() {
                 } else {
                     println!("Updated/downloaded files, but version number is already correct, so leaving it as it is")
                 }
+
+                update_env_path(download_path);
             }
 
             Err(err) => {
