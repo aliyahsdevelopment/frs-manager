@@ -1,4 +1,4 @@
-use std::io::prelude::*;
+use std::io::{prelude::*, Cursor};
 use std::process::Command;
 use std::{fs::File, path::Path};
 use serde::{Deserialize, Serialize};
@@ -113,7 +113,45 @@ async fn main() {
                                 println!("Error occured whilst creating version file: {}", err);
                             }
                         }
-                    }                    
+                    }
+
+                    let frs_path = download_path.join("frs.exe");
+                    if frs_path.exists() == false {
+                        match reqwest::get(download_data.0).await {
+                            Ok(frs_exe_data) => {
+                                match frs_exe_data.bytes().await {
+                                    Ok (frs_exe_data_bytes) => {
+                                        let frs_file = File::create(frs_path);
+
+                                        match frs_file {
+                                            Ok (mut frs_file) => {
+                                                match std::io::copy(&mut Cursor::new(frs_exe_data_bytes), &mut frs_file) {
+                                                    Ok (_) => {
+                                                        println!("Wrote to frs exe file");
+                                                    }
+
+                                                    Err (err) => {
+                                                        println!("Error occured whilst writing to frs exe file: {}", err);
+                                                    }
+                                                }
+                                            }
+                                            Err(err) => {
+                                                println!("Error whilst fetching frs body data: {}", err);
+                                            }
+                                        }
+                                    }
+
+                                    Err(err) => {
+                                        println!("Error whilst fetching frs body data: {}", err);
+                                    }
+                                }
+                            }
+
+                            Err(err) => {
+                                println!("Error whilst fetching frs data: {}", err);
+                            }
+                        }
+                    }
                 }
 
                 Err(err) => {
