@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -43,22 +45,46 @@ async fn main() {
                             }
                         }
                     }
+
                     Err(err) => {
                         return Err(err.to_string());
                     }
                 }
             }
+
             Err(err) => {
                 return Err(err.to_string());
             }
         }
     }
 
+    fn get_download_path() -> Result<String, String> {
+        match std::env::var("ProgramFiles") {
+            Ok(program_files_path) => {
+                return Ok(Path::new(program_files_path.as_str()).join("frs-manager").display().to_string());
+            }
+
+            Err(err) => {
+                return Err(err.to_string());
+            }
+        };
+    }
+
     let download_url = get_download_url().await;
+    let download_path = get_download_path();
 
     match download_url {
-        Ok (download_url) => {
-            println!("url: {}", download_url);
+        Ok(download_url) => {
+            match download_path {
+                Ok(download_path) => {
+                    println!("url: {}", download_url);
+                    println!("path: {}", download_path);
+                }
+
+                Err(err) => {
+                    println!("Error whilst fetching download path: {}", err)
+                }
+            }
         }
 
         Err(err) => {
