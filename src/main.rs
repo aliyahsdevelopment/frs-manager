@@ -1,21 +1,29 @@
-use clap::Parser;
+use clap::{Command, FromArgMatches, Subcommand};
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Name of the person to greet
-    #[arg(short, long)]
-    name: String,
-
-    /// Number of times to greet
-    #[arg(short, long, default_value_t = 1)]
-    count: u8,
+#[derive(Subcommand, Debug, Clone)]
+enum Subcommands {
+    /// Update FRS
+    Update,
+    /// Uninstall FRS 
+    Uninstall
 }
 
 fn main() {
-    let args = Args::parse();
+    let cli = Subcommands::augment_subcommands(Command::new("frs"));
 
-    for _ in 0..args.count {
-        println!("Hello {}!", args.name)
+    let matches = cli.get_matches();
+    let derived_subcommands = Subcommands::from_arg_matches(&matches)
+        .map_err(|err| err.exit())
+        .unwrap();
+    println!("Derived subcommands: {derived_subcommands:#?}");
+
+    match derived_subcommands {
+        Subcommands::Update => {
+            println!("we should run update now")
+        }
+
+        Subcommands::Uninstall => {
+            println!("we should run uninstall now")
+        }
     }
 }
