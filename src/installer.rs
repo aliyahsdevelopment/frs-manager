@@ -1,3 +1,4 @@
+use std::fs::read_to_string;
 use std::io::{prelude::*, Cursor};
 use std::process::Command;
 use std::{fs::File, path::Path};
@@ -80,10 +81,6 @@ async fn main() {
         Ok(download_data) => {
             match raw_download_path {
                 Ok(raw_download_path) => {
-                    println!("url: {}", download_data.0);
-                    println!("id: {}", download_data.1);
-                    println!("path: {}", raw_download_path);
-
                     let download_path = Path::new(raw_download_path.as_str());
 
                     if download_path.exists() == false {
@@ -95,7 +92,7 @@ async fn main() {
 
                     let version_id_path = download_path.join("version_id");
                     if version_id_path.exists() == false {
-                        let version_file = File::create(version_id_path);
+                        let version_file = File::create(version_id_path.clone());
                         match version_file {
                             Ok (mut version_file) => {
                                 match version_file.write(download_data.1.to_string().as_bytes()) {
@@ -113,10 +110,14 @@ async fn main() {
                                 println!("Error occured whilst creating version file: {}", err);
                             }
                         }
+                    } else {
+                        println!("Version file already exists, no need to initialize")
                     }
 
                     let frs_path = download_path.join("frs.exe");
-                    if frs_path.exists() == false {
+                    let current_version_value: i32 = read_to_string(version_id_path.clone()).expect("Couldnt read version id").parse().expect("Couldnt convert version id to i32");
+
+                    if frs_path.exists() == false || current_version_value != download_data.1 {
                         match reqwest::get(download_data.0).await {
                             Ok(frs_exe_data) => {
                                 match frs_exe_data.bytes().await {
@@ -135,6 +136,7 @@ async fn main() {
                                                     }
                                                 }
                                             }
+
                                             Err(err) => {
                                                 println!("Error whilst fetching frs body data: {}", err);
                                             }
@@ -151,6 +153,31 @@ async fn main() {
                                 println!("Error whilst fetching frs data: {}", err);
                             }
                         }
+                    
+                        if current_version_value != download_data.1 {
+                            let version_file = File::create(version_id_path.clone());
+                            match version_file {
+                                Ok (mut version_file) => {
+                                    match version_file.write(download_data.1.to_string().as_bytes()) {
+                                        Ok (_) => {
+                                            println!("Wrote to version file");
+                                        }
+    
+                                        Err (err) => {
+                                            println!("Error occured whilst writing to version file: {}", err);
+                                        }   
+                                    }
+                                }
+
+                                Err (err) => {
+                                    println!("Error occured whilst writing to version file: {}", err);
+                                }
+                            }
+                        } else {
+                            println!("Updated/downloaded files, but version number is already correct, so leaving it as it is")
+                        }
+                    } else {
+                        println!("Version matches & frs exe already exists, no need to update files")
                     }
                 }
 
