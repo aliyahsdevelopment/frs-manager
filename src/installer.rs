@@ -1,8 +1,14 @@
+#[cfg(target_os = "windows")]
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "windows")]
 use std::fs::read_to_string;
+#[cfg(target_os = "windows")]
 use std::io::{prelude::*, Cursor};
+#[cfg(target_os = "windows")]
 use std::process::Command;
+#[cfg(target_os = "windows")]
 use std::{fs::File, path::Path};
+#[cfg(target_os = "windows")]
 use tokio::fs::create_dir;
 #[cfg(target_os = "windows")]
 use winreg::{enums::HKEY_CURRENT_USER, RegKey};
@@ -20,6 +26,7 @@ struct ReleaseResponse {
     pub id: i32,
 }
 
+#[cfg(target_os = "windows")]
 pub fn get_download_path() -> Result<String, String> {
     match std::env::var("ProgramFiles") {
         Ok(program_files_path) => {
@@ -33,6 +40,11 @@ pub fn get_download_path() -> Result<String, String> {
             return Err(err.to_string());
         }
     };
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn get_download_path() -> Result<String, String> {
+    return Err(String::from("This function doesnt support linux"));
 }
 
 #[cfg(target_os = "windows")]
@@ -61,67 +73,74 @@ fn update_env_path(download_path: &Path) {
 #[cfg(not(target_os = "windows"))]
 fn update_env_path(_download_path: &Path) {}
 
-#[tokio::main]
-async fn main() {
-    // (frs.exe, installer.exe, id)
-    async fn get_download_data() -> Result<(String, String, i32), String> {
-        let reqwest_client = reqwest::Client::builder().user_agent("FRS-Manager").build();
+// (frs.exe, installer.exe, id)
+#[cfg(target_os = "windows")]
+async fn get_download_data() -> Result<(String, String, i32), String> {
+    let reqwest_client = reqwest::Client::builder().user_agent("FRS-Manager").build();
 
-        match reqwest_client {
-            Ok(reqwest_client) => {
-                match reqwest_client
-                    .get("https://api.github.com/repos/Z3rio/frs-manager/releases/latest")
-                    .send()
-                    .await
-                {
-                    Ok(resp) => match resp.json::<ReleaseResponse>().await {
-                        Ok(json) => {
-                            let frs_exe_asset =
-                                json.assets.clone().into_iter().find(|a| a.name == "frs.exe");
+    match reqwest_client {
+        Ok(reqwest_client) => {
+            match reqwest_client
+                .get("https://api.github.com/repos/Z3rio/frs-manager/releases/latest")
+                .send()
+                .await
+            {
+                Ok(resp) => match resp.json::<ReleaseResponse>().await {
+                    Ok(json) => {
+                        let frs_exe_asset =
+                            json.assets.clone().into_iter().find(|a| a.name == "frs.exe");
 
-                            match frs_exe_asset {
-                                Some(frs_exe_asset) => {
-                                    let installer_exe_asset =
-                                        json.assets.clone().into_iter().find(|a| a.name == "installer.exe");
+                        match frs_exe_asset {
+                            Some(frs_exe_asset) => {
+                                let installer_exe_asset =
+                                    json.assets.clone().into_iter().find(|a| a.name == "installer.exe");
 
-                                    match installer_exe_asset {
-                                        Some(installer_exe_asset) => {
-                                            return Ok((frs_exe_asset.browser_download_url, installer_exe_asset.browser_download_url, json.id));
-                                        }
+                                match installer_exe_asset {
+                                    Some(installer_exe_asset) => {
+                                        return Ok((frs_exe_asset.browser_download_url, installer_exe_asset.browser_download_url, json.id));
+                                    }
 
-                                        None => {
-                                            return Err(String::from(
-                                                "Could not find installer in assets list",
-                                            ));
-                                        }
+                                    None => {
+                                        return Err(String::from(
+                                            "Could not find installer in assets list",
+                                        ));
                                     }
                                 }
+                            }
 
-                                None => {
-                                    return Err(String::from(
-                                        "Could not find frs in assets list",
-                                    ));
-                                }
+                            None => {
+                                return Err(String::from(
+                                    "Could not find frs in assets list",
+                                ));
                             }
                         }
-
-                        Err(err) => {
-                            return Err(err.to_string());
-                        }
-                    },
+                    }
 
                     Err(err) => {
                         return Err(err.to_string());
                     }
+                },
+
+                Err(err) => {
+                    return Err(err.to_string());
                 }
             }
+        }
 
-            Err(err) => {
-                return Err(err.to_string());
-            }
+        Err(err) => {
+            return Err(err.to_string());
         }
     }
+}
 
+#[cfg(not(target_os = "windows"))]
+pub fn get_download_data() -> Result<String, String> {
+    return Err(String::from("This function doesnt support linux"));
+}
+
+#[tokio::main]
+#[cfg(target_os = "windows")]
+async fn main() {
     let download_data = get_download_data().await;
     let raw_download_path = get_download_path();
 
@@ -306,4 +325,9 @@ async fn main() {
     }
 
     let _ = Command::new("cmd.exe").arg("/c").arg("pause").status();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn main() {
+    println!("This installer can only run on windows.")
 }
