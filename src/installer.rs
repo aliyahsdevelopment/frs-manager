@@ -1,9 +1,7 @@
 #[cfg(target_os = "windows")]
 mod utils;
 
-#[cfg(target_os = "windows")]
 use serde::{Deserialize, Serialize};
-#[cfg(target_os = "windows")]
 use std::{fs::File, path::Path};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -47,9 +45,9 @@ fn update_env_path(download_path: &Path) {
 #[cfg(not(target_os = "windows"))]
 fn update_env_path(_download_path: &Path) {}
 
-// (frs.exe, installer.exe, id)
+// (frs.exe, installer.exe, id, uninstaller.exe)
 #[cfg(target_os = "windows")]
-async fn get_download_data() -> Result<(String, String, i32), String> {
+async fn get_download_data() -> Result<(String, String, i32, String), String> {
     let reqwest_client = reqwest::Client::builder().user_agent("FRS-Manager").build();
 
     match reqwest_client {
@@ -71,7 +69,20 @@ async fn get_download_data() -> Result<(String, String, i32), String> {
 
                                 match installer_exe_asset {
                                     Some(installer_exe_asset) => {
-                                        return Ok((frs_exe_asset.browser_download_url, installer_exe_asset.browser_download_url, json.id));
+                                        let uninstaller_exe_asset =
+                                            json.assets.clone().into_iter().find(|a| a.name == "uninstaller.exe");
+        
+                                        match uninstaller_exe_asset {
+                                            Some(uninstaller_exe_asset) => {
+                                                return Ok((frs_exe_asset.browser_download_url, installer_exe_asset.browser_download_url, json.id, uninstaller_exe_asset.browser_download_url));
+                                            }
+
+                                            None => {
+                                                return Err(String::from(
+                                                    "Could not find uninstaller in assets list",
+                                                ));
+                                            }
+                                        }
                                     }
 
                                     None => {
@@ -182,6 +193,7 @@ async fn main() {
 
                     let frs_path = bin_path.clone().join("frs.exe");
                     let installer_path = download_path.join("installer.exe");
+                    let uninstaller_path = download_path.join("uninstaller.exe");
 
                     if frs_path.exists() == false || current_version_value != download_data.2 {
                         match reqwest::get(download_data.0).await {
@@ -263,6 +275,47 @@ async fn main() {
                         }
                     } else {
                         println!("Version matches & installer exe already exists, no need to update the file")
+                    }
+
+                    if uninstaller_path.exists() == false || current_version_value != download_data.2 {
+                        match reqwest::get(download_data.3).await {
+                            Ok(uninstaller_exe_data) => match uninstaller_exe_data.bytes().await {
+                                Ok(uninstaller_exe_data_bytes) => {
+                                    let uninstaller_file = File::create(uninstaller_path);
+
+                                    match uninstaller_file {
+                                        Ok(mut uninstaller_file) => {
+                                            match std::io::copy(
+                                                &mut Cursor::new(uninstaller_exe_data_bytes),
+                                                &mut uninstaller_file,
+                                            ) {
+                                                Ok(_) => {
+                                                    println!("Wrote to uninstaller exe file");
+                                                }
+
+                                                Err(err) => {
+                                                    println!("Error occured whilst writing to uninstaller exe file: {}", err);
+                                                }
+                                            }
+                                        }
+
+                                        Err(err) => {
+                                            println!("Error whilst fetching uninstaller body data: {}", err);
+                                        }
+                                    }
+                                }
+
+                                Err(err) => {
+                                    println!("Error whilst fetching uninstaller body data: {}", err);
+                                }
+                            },
+
+                            Err(err) => {
+                                println!("Error whilst fetching uninstaller data: {}", err);
+                            }
+                        }
+                    } else {
+                        println!("Version matches & uninstaller exe already exists, no need to update the file")
                     }
 
                     if current_version_value != download_data.2 {
