@@ -8,7 +8,15 @@ pub fn handler() {
         Ok(raw_download_path) => {
             let download_path = Path::new(raw_download_path.as_str());
 
-            remove_env_var(download_path);
+            match remove_env_var(download_path) {
+                Ok(_) => {
+                    println!("Successfully removed env variable");
+                }
+
+                Err(err) => {
+                    println!("Failed to remove env variable: {}", err);
+                }
+            }
 
             match cleanup_files(download_path) {
                 Ok(_) => {
