@@ -1,21 +1,8 @@
 #[cfg(target_os = "windows")]
 mod utils;
+mod models;
 
-use serde::{Deserialize, Serialize};
 use std::{fs::File, path::Path};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct ReleaseAsset {
-    pub browser_download_url: String,
-    pub name: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ReleaseResponse {
-    pub url: String,
-    pub assets: Vec<ReleaseAsset>,
-    pub id: i32,
-}
 
 #[cfg(target_os = "windows")]
 fn update_env_path(download_path: &Path) {
@@ -45,89 +32,13 @@ fn update_env_path(download_path: &Path) {
 #[cfg(not(target_os = "windows"))]
 fn update_env_path(_download_path: &Path) {}
 
-// (frs.exe, installer.exe, id, uninstaller.exe)
-struct DownloadData {
-    pub frs_exe: String,
-    pub installer_exe: String,
-    pub uninstaller_exe: String,
-    pub version: i32,
-}
-
-#[cfg(target_os = "windows")]
-async fn get_download_data() -> Result<DownloadData, String> {
-    let reqwest_client = reqwest::Client::builder().user_agent("FRS-Manager").build();
-
-    match reqwest_client {
-        Ok(reqwest_client) => {
-            match reqwest_client
-                .get("https://api.github.com/repos/Z3rio/frs-manager/releases/latest")
-                .send()
-                .await
-            {
-                Ok(resp) => match resp.json::<ReleaseResponse>().await {
-                    Ok(json) => {
-                        let frs_exe_asset =
-                            json.assets.clone().into_iter().find(|a| a.name == "frs.exe");
-
-                        match frs_exe_asset {
-                            Some(frs_exe_asset) => {
-                                let installer_exe_asset =
-                                    json.assets.clone().into_iter().find(|a| a.name == "installer.exe");
-
-                                match installer_exe_asset {
-                                    Some(installer_exe_asset) => {
-                                        let uninstaller_exe_asset =
-                                            json.assets.clone().into_iter().find(|a| a.name == "uninstaller.exe");
-        
-                                        match uninstaller_exe_asset {
-                                            Some(uninstaller_exe_asset) => Ok(DownloadData {
-                                                frs_exe: frs_exe_asset.browser_download_url,
-                                                installer_exe: installer_exe_asset.browser_download_url,
-                                                uninstaller_exe: uninstaller_exe_asset.browser_download_url,
-                                                version: json.id,
-                                            }),
-
-                                            None => Err(String::from(
-                                                "Could not find uninstaller in assets list",
-                                            ))
-                                        }
-                                    }
-
-                                    None => Err(String::from(
-                                        "Could not find installer in assets list",
-                                    ))
-                                }
-                            }
-
-                            None => Err(String::from(
-                                "Could not find frs in assets list",
-                            ))
-                        }
-                    }
-
-                    Err(err) => Err(err.to_string())
-                },
-
-                Err(err) => Err(err.to_string())
-            }
-        }
-
-        Err(err) => Err(err.to_string())
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn get_download_data() -> Result<DownloadData, String> {
-    return Err(String::from("This function doesnt support linux"));
-}
-
 #[tokio::main]
 #[cfg(target_os = "windows")]
-async fn main() {
+pub async fn main() {
     use std::fs::read_to_string;
     use std::io::{prelude::*, Cursor};
     use tokio::fs::create_dir;
-    use utils::{get_download_path, wait_before_close};
+    use crate::utils::{get_download_path, wait_before_close, get_download_data};
 
     let download_data = get_download_data().await;
     let raw_download_path = get_download_path();

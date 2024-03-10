@@ -1,3 +1,6 @@
+mod commands;
+mod models;
+mod utils;
 use clap::{Command, FromArgMatches, Subcommand};
 
 #[derive(Subcommand, Debug, Clone)]
@@ -19,11 +22,11 @@ fn main() {
 
     match derived_subcommands {
         Subcommands::Update => {
-            println!("we should run update now")
+            commands::update::handler();
         }
 
         Subcommands::Uninstall => {
-            println!("we should run uninstall now")
+            commands::uninstall::handler();
         }
     }
 }

@@ -1,13 +1,12 @@
 #[cfg(target_os = "windows")]
 mod utils;
+mod models;
 
 #[tokio::main]
 #[cfg(target_os = "windows")]
 async fn main() {
-    use std::{fs::{remove_dir_all, remove_file}, io::{stdin, stdout, Write}, path::Path};
-    use utils::{get_download_path, wait_before_close};
-    use winreg::{enums::HKEY_CURRENT_USER, RegKey};
-    use houdini;
+    use std::{io::{stdin, stdout, Write}, path::Path};
+    use utils::{get_download_path, wait_before_close, remove_env_var, cleanup_files};
 
     let raw_download_path = get_download_path();
 
@@ -38,71 +37,16 @@ async fn main() {
                 println!("Uninstalling FRS...");
                 let download_path = Path::new(raw_download_path.as_str());
 
-                match std::env::var("PATH") {
-                    Ok(env_path) => {
-                        let frs_env_path = download_path.join("bin").display().to_string();
-                        
-                        if env_path.contains(frs_env_path.as_str()) {
-                            let splits = env_path.split(';');
+                remove_env_var(download_path);
 
-                            let filtered = splits.filter(|&s| s != frs_env_path.as_str());
-                            let joined = filtered.collect::<Vec<&str>>().join(";");
-                            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-                            let (env, _) = hkcu.create_subkey("Environment").unwrap();
-                            env.set_value("Path", &joined).unwrap();
-                            println!("FRS was removed from the env path");
-                        } else {
-                            println!("FRS already doesnt exist in env path");
-                        }
+                match cleanup_files(download_path) {
+                    Ok(_) => {
+                        println!("Successfully removed files");
                     }
-            
+
                     Err(err) => {
-                        println!("Couldnt fetch windows env variables: {}", err);
+                        println!("Failed to remove frs files: {}", err);
                     }
-                }
-
-                if download_path.exists() {
-                    match houdini::disappear() {
-                        Ok(_) => {
-                            println!("Removed uninstaller");
-
-                            match remove_file(download_path.join("installer.exe")) {
-                                Ok(_) => {
-                                    println!("Removed installer file");
-                                }
-        
-                                Err(err) => {
-                                    println!("Failed to remove installer file: {}", err);
-                                }
-                            }
-
-                            match remove_file(download_path.join("version_id")) {
-                                Ok(_) => {
-                                    println!("Removed version file");
-                                }
-        
-                                Err(err) => {
-                                    println!("Failed to remove version file: {}", err);
-                                }
-                            }
-
-                            match remove_dir_all(download_path.join("bin")) {
-                                Ok(_) => {
-                                    println!("Removed bin folder");
-                                }
-        
-                                Err(err) => {
-                                    println!("Failed to remove bin folder: {}", err);
-                                }
-                            }
-                        }
-
-                        Err(err) => {
-                            println!("Failed to remove uninstaller: {}", err);
-                        }
-                    }
-                } else {
-                    println!("FRS directory already doesnt exist");
                 }
             } else {
                 println!("Cancelling uninstallation process...");
