@@ -59,7 +59,7 @@ fn update_env_path(download_path: &Path) {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn update_env_path(download_path: &Path) {}
+fn update_env_path(_download_path: &Path) {}
 
 #[tokio::main]
 async fn main() {
