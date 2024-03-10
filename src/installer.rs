@@ -46,8 +46,15 @@ fn update_env_path(download_path: &Path) {
 fn update_env_path(_download_path: &Path) {}
 
 // (frs.exe, installer.exe, id, uninstaller.exe)
+struct DownloadData {
+    pub frs_exe: String,
+    pub installer_exe: String,
+    pub uninstaller_exe: String,
+    pub version: i32,
+}
+
 #[cfg(target_os = "windows")]
-async fn get_download_data() -> Result<(String, String, i32, String), String> {
+async fn get_download_data() -> Result<DownloadData, String> {
     let reqwest_client = reqwest::Client::builder().user_agent("FRS-Manager").build();
 
     match reqwest_client {
@@ -74,7 +81,12 @@ async fn get_download_data() -> Result<(String, String, i32, String), String> {
         
                                         match uninstaller_exe_asset {
                                             Some(uninstaller_exe_asset) => {
-                                                return Ok((frs_exe_asset.browser_download_url, installer_exe_asset.browser_download_url, json.id, uninstaller_exe_asset.browser_download_url));
+                                                return Ok(DownloadData {
+                                                    frs_exe: frs_exe_asset.browser_download_url,
+                                                    installer_exe: installer_exe_asset.browser_download_url,
+                                                    uninstaller_exe: uninstaller_exe_asset.browser_download_url,
+                                                    version: json.id,
+                                                });
                                             }
 
                                             None => {
@@ -119,7 +131,7 @@ async fn get_download_data() -> Result<(String, String, i32, String), String> {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn get_download_data() -> Result<String, String> {
+pub fn get_download_data() -> Result<DownloadData, String> {
     return Err(String::from("This function doesnt support linux"));
 }
 
@@ -164,7 +176,7 @@ async fn main() {
                         let version_file = File::create(version_id_path.clone());
                         match version_file {
                             Ok(mut version_file) => {
-                                match version_file.write(download_data.2.to_string().as_bytes()) {
+                                match version_file.write(download_data.version.to_string().as_bytes()) {
                                     Ok(_) => {
                                         println!("Wrote to version file");
                                     }
@@ -195,8 +207,8 @@ async fn main() {
                     let installer_path = download_path.join("installer.exe");
                     let uninstaller_path = download_path.join("uninstaller.exe");
 
-                    if frs_path.exists() == false || current_version_value != download_data.2 {
-                        match reqwest::get(download_data.0).await {
+                    if frs_path.exists() == false || current_version_value != download_data.version {
+                        match reqwest::get(download_data.frs_exe).await {
                             Ok(frs_exe_data) => match frs_exe_data.bytes().await {
                                 Ok(frs_exe_data_bytes) => {
                                     let frs_file = File::create(frs_path);
@@ -236,8 +248,8 @@ async fn main() {
                         println!("Version matches & frs exe already exists, no need to update the file")
                     }
 
-                    if installer_path.exists() == false || current_version_value != download_data.2 {
-                        match reqwest::get(download_data.1).await {
+                    if installer_path.exists() == false || current_version_value != download_data.version {
+                        match reqwest::get(download_data.installer_exe).await {
                             Ok(installer_exe_data) => match installer_exe_data.bytes().await {
                                 Ok(installer_exe_data_bytes) => {
                                     let installer_file = File::create(installer_path);
@@ -277,8 +289,8 @@ async fn main() {
                         println!("Version matches & installer exe already exists, no need to update the file")
                     }
 
-                    if uninstaller_path.exists() == false || current_version_value != download_data.2 {
-                        match reqwest::get(download_data.3).await {
+                    if uninstaller_path.exists() == false || current_version_value != download_data.version {
+                        match reqwest::get(download_data.uninstaller_exe).await {
                             Ok(uninstaller_exe_data) => match uninstaller_exe_data.bytes().await {
                                 Ok(uninstaller_exe_data_bytes) => {
                                     let uninstaller_file = File::create(uninstaller_path);
@@ -318,11 +330,11 @@ async fn main() {
                         println!("Version matches & uninstaller exe already exists, no need to update the file")
                     }
 
-                    if current_version_value != download_data.2 {
+                    if current_version_value != download_data.version {
                         let version_file = File::create(version_id_path.clone());
                         match version_file {
                             Ok(mut version_file) => {
-                                match version_file.write(download_data.2.to_string().as_bytes()) {
+                                match version_file.write(download_data.version.to_string().as_bytes()) {
                                     Ok(_) => {
                                         println!("Wrote to version file");
                                     }
