@@ -1,17 +1,10 @@
 #[cfg(target_os = "windows")]
+mod utils;
+
+#[cfg(target_os = "windows")]
 use serde::{Deserialize, Serialize};
 #[cfg(target_os = "windows")]
-use std::fs::read_to_string;
-#[cfg(target_os = "windows")]
-use std::io::{prelude::*, Cursor};
-#[cfg(target_os = "windows")]
-use std::process::Command;
-#[cfg(target_os = "windows")]
 use std::{fs::File, path::Path};
-#[cfg(target_os = "windows")]
-use tokio::fs::create_dir;
-#[cfg(target_os = "windows")]
-use winreg::{enums::HKEY_CURRENT_USER, RegKey};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct ReleaseAsset {
@@ -27,28 +20,9 @@ struct ReleaseResponse {
 }
 
 #[cfg(target_os = "windows")]
-pub fn get_download_path() -> Result<String, String> {
-    match std::env::var("ProgramFiles") {
-        Ok(program_files_path) => {
-            return Ok(Path::new(program_files_path.as_str())
-                .join("FRS_Manager")
-                .display()
-                .to_string());
-        }
-
-        Err(err) => {
-            return Err(err.to_string());
-        }
-    };
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn get_download_path() -> Result<String, String> {
-    return Err(String::from("This function doesnt support linux"));
-}
-
-#[cfg(target_os = "windows")]
 fn update_env_path(download_path: &Path) {
+    use winreg::{enums::HKEY_CURRENT_USER, RegKey};
+
     match std::env::var("PATH") {
         Ok(env_path) => {
             let frs_env_path = download_path.join("bin").display().to_string();
@@ -141,190 +115,197 @@ pub fn get_download_data() -> Result<String, String> {
 #[tokio::main]
 #[cfg(target_os = "windows")]
 async fn main() {
+    use std::fs::read_to_string;
+    use std::io::{prelude::*, Cursor};
+    use tokio::fs::create_dir;
+    use utils::{get_download_path, wait_before_close};
+
     let download_data = get_download_data().await;
     let raw_download_path = get_download_path();
 
     match download_data {
-        Ok(download_data) => match raw_download_path {
-            Ok(raw_download_path) => {
-                let download_path = Path::new(raw_download_path.as_str());
-                let bin_path = download_path.join("bin");
+        Ok(download_data) => {
+            match raw_download_path {
+                Ok(raw_download_path) => {
+                    let download_path = Path::new(raw_download_path.as_str());
+                    let bin_path = download_path.join("bin");
 
-                if download_path.exists() == false {
-                    create_dir(download_path)
-                        .await
-                        .expect("Couldnt create download path");
-                    println!("Created folder for frs-manager");
-                } else {
-                    println!("Folder already exists");
-                }
-
-                if bin_path.clone().exists() == false {
-                    create_dir(bin_path.clone())
-                        .await
-                        .expect("Couldnt create bin path");
-                    println!("Created bin folder for frs-manager");
-                } else {
-                    println!("Bin folder already exists");
-                }
-
-                let version_id_path = download_path.join("version_id");
-                if version_id_path.exists() == false {
-                    let version_file = File::create(version_id_path.clone());
-                    match version_file {
-                        Ok(mut version_file) => {
-                            match version_file.write(download_data.2.to_string().as_bytes()) {
-                                Ok(_) => {
-                                    println!("Wrote to version file");
-                                }
-
-                                Err(err) => {
-                                    println!(
-                                        "Error occured whilst writing to version file: {}",
-                                        err
-                                    );
-                                }
-                            }
-                        }
-
-                        Err(err) => {
-                            println!("Error occured whilst creating version file: {}", err);
-                        }
+                    if download_path.exists() == false {
+                        create_dir(download_path)
+                            .await
+                            .expect("Couldnt create download path");
+                        println!("Created folder for frs-manager");
+                    } else {
+                        println!("Folder already exists");
                     }
-                } else {
-                    println!("Version file already exists, no need to initialize")
-                }
 
-                let current_version_value: i32 = read_to_string(version_id_path.clone())
-                    .expect("Couldnt read version id")
-                    .parse()
-                    .expect("Couldnt convert version id to i32");
+                    if bin_path.clone().exists() == false {
+                        create_dir(bin_path.clone())
+                            .await
+                            .expect("Couldnt create bin path");
+                        println!("Created bin folder for frs-manager");
+                    } else {
+                        println!("Bin folder already exists");
+                    }
 
-                let frs_path = bin_path.clone().join("frs.exe");
-                let installer_path = download_path.join("installer.exe");
-
-                if frs_path.exists() == false || current_version_value != download_data.2 {
-                    match reqwest::get(download_data.0).await {
-                        Ok(frs_exe_data) => match frs_exe_data.bytes().await {
-                            Ok(frs_exe_data_bytes) => {
-                                let frs_file = File::create(frs_path);
-
-                                match frs_file {
-                                    Ok(mut frs_file) => {
-                                        match std::io::copy(
-                                            &mut Cursor::new(frs_exe_data_bytes),
-                                            &mut frs_file,
-                                        ) {
-                                            Ok(_) => {
-                                                println!("Wrote to frs exe file");
-                                            }
-
-                                            Err(err) => {
-                                                println!("Error occured whilst writing to frs exe file: {}", err);
-                                            }
-                                        }
+                    let version_id_path = download_path.join("version_id");
+                    if version_id_path.exists() == false {
+                        let version_file = File::create(version_id_path.clone());
+                        match version_file {
+                            Ok(mut version_file) => {
+                                match version_file.write(download_data.2.to_string().as_bytes()) {
+                                    Ok(_) => {
+                                        println!("Wrote to version file");
                                     }
 
                                     Err(err) => {
-                                        println!("Error whilst fetching frs body data: {}", err);
+                                        println!(
+                                            "Error occured whilst writing to version file: {}",
+                                            err
+                                        );
                                     }
                                 }
                             }
 
                             Err(err) => {
-                                println!("Error whilst fetching frs body data: {}", err);
+                                println!("Error occured whilst creating version file: {}", err);
                             }
-                        },
-
-                        Err(err) => {
-                            println!("Error whilst fetching frs data: {}", err);
                         }
+                    } else {
+                        println!("Version file already exists, no need to initialize")
                     }
-                } else {
-                    println!("Version matches & frs exe already exists, no need to update the file")
-                }
 
-                if installer_path.exists() == false || current_version_value != download_data.2 {
-                    match reqwest::get(download_data.1).await {
-                        Ok(installer_exe_data) => match installer_exe_data.bytes().await {
-                            Ok(installer_exe_data_bytes) => {
-                                let installer_file = File::create(installer_path);
+                    let current_version_value: i32 = read_to_string(version_id_path.clone())
+                        .expect("Couldnt read version id")
+                        .parse()
+                        .expect("Couldnt convert version id to i32");
 
-                                match installer_file {
-                                    Ok(mut installer_file) => {
-                                        match std::io::copy(
-                                            &mut Cursor::new(installer_exe_data_bytes),
-                                            &mut installer_file,
-                                        ) {
-                                            Ok(_) => {
-                                                println!("Wrote to installer exe file");
-                                            }
+                    let frs_path = bin_path.clone().join("frs.exe");
+                    let installer_path = download_path.join("installer.exe");
 
-                                            Err(err) => {
-                                                println!("Error occured whilst writing to installer exe file: {}", err);
+                    if frs_path.exists() == false || current_version_value != download_data.2 {
+                        match reqwest::get(download_data.0).await {
+                            Ok(frs_exe_data) => match frs_exe_data.bytes().await {
+                                Ok(frs_exe_data_bytes) => {
+                                    let frs_file = File::create(frs_path);
+
+                                    match frs_file {
+                                        Ok(mut frs_file) => {
+                                            match std::io::copy(
+                                                &mut Cursor::new(frs_exe_data_bytes),
+                                                &mut frs_file,
+                                            ) {
+                                                Ok(_) => {
+                                                    println!("Wrote to frs exe file");
+                                                }
+
+                                                Err(err) => {
+                                                    println!("Error occured whilst writing to frs exe file: {}", err);
+                                                }
                                             }
                                         }
+
+                                        Err(err) => {
+                                            println!("Error whilst fetching frs body data: {}", err);
+                                        }
+                                    }
+                                }
+
+                                Err(err) => {
+                                    println!("Error whilst fetching frs body data: {}", err);
+                                }
+                            },
+
+                            Err(err) => {
+                                println!("Error whilst fetching frs data: {}", err);
+                            }
+                        }
+                    } else {
+                        println!("Version matches & frs exe already exists, no need to update the file")
+                    }
+
+                    if installer_path.exists() == false || current_version_value != download_data.2 {
+                        match reqwest::get(download_data.1).await {
+                            Ok(installer_exe_data) => match installer_exe_data.bytes().await {
+                                Ok(installer_exe_data_bytes) => {
+                                    let installer_file = File::create(installer_path);
+
+                                    match installer_file {
+                                        Ok(mut installer_file) => {
+                                            match std::io::copy(
+                                                &mut Cursor::new(installer_exe_data_bytes),
+                                                &mut installer_file,
+                                            ) {
+                                                Ok(_) => {
+                                                    println!("Wrote to installer exe file");
+                                                }
+
+                                                Err(err) => {
+                                                    println!("Error occured whilst writing to installer exe file: {}", err);
+                                                }
+                                            }
+                                        }
+
+                                        Err(err) => {
+                                            println!("Error whilst fetching installer body data: {}", err);
+                                        }
+                                    }
+                                }
+
+                                Err(err) => {
+                                    println!("Error whilst fetching installer body data: {}", err);
+                                }
+                            },
+
+                            Err(err) => {
+                                println!("Error whilst fetching installer data: {}", err);
+                            }
+                        }
+                    } else {
+                        println!("Version matches & installer exe already exists, no need to update the file")
+                    }
+
+                    if current_version_value != download_data.2 {
+                        let version_file = File::create(version_id_path.clone());
+                        match version_file {
+                            Ok(mut version_file) => {
+                                match version_file.write(download_data.2.to_string().as_bytes()) {
+                                    Ok(_) => {
+                                        println!("Wrote to version file");
                                     }
 
                                     Err(err) => {
-                                        println!("Error whilst fetching installer body data: {}", err);
+                                        println!(
+                                            "Error occured whilst writing to version file: {}",
+                                            err
+                                        );
                                     }
                                 }
                             }
 
                             Err(err) => {
-                                println!("Error whilst fetching installer body data: {}", err);
-                            }
-                        },
-
-                        Err(err) => {
-                            println!("Error whilst fetching installer data: {}", err);
-                        }
-                    }
-                } else {
-                    println!("Version matches & installer exe already exists, no need to update the file")
-                }
-
-                if current_version_value != download_data.2 {
-                    let version_file = File::create(version_id_path.clone());
-                    match version_file {
-                        Ok(mut version_file) => {
-                            match version_file.write(download_data.2.to_string().as_bytes()) {
-                                Ok(_) => {
-                                    println!("Wrote to version file");
-                                }
-
-                                Err(err) => {
-                                    println!(
-                                        "Error occured whilst writing to version file: {}",
-                                        err
-                                    );
-                                }
+                                println!("Error occured whilst writing to version file: {}", err);
                             }
                         }
-
-                        Err(err) => {
-                            println!("Error occured whilst writing to version file: {}", err);
-                        }
+                    } else {
+                        println!("Updated/downloaded files, but version number is already correct, so leaving it as it is")
                     }
-                } else {
-                    println!("Updated/downloaded files, but version number is already correct, so leaving it as it is")
+
+                    update_env_path(download_path);
                 }
 
-                update_env_path(download_path);
+                Err(err) => {
+                    println!("Error whilst fetching download path: {}", err);
+                }
             }
-
-            Err(err) => {
-                println!("Error whilst fetching download path: {}", err);
-            }
-        },
+        }
 
         Err(err) => {
             println!("Error whilst fetching download url: {}", err);
         }
     }
 
-    let _ = Command::new("cmd.exe").arg("/c").arg("pause").status();
+    wait_before_close();
 }
 
 #[cfg(not(target_os = "windows"))]
