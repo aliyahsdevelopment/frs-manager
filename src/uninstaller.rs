@@ -4,9 +4,10 @@ mod utils;
 #[tokio::main]
 #[cfg(target_os = "windows")]
 async fn main() {
-    use std::{fs::remove_dir_all, io::{stdin, stdout, Write}, path::Path};
+    use std::{fs::{remove_dir_all, remove_file}, io::{stdin, stdout, Write}, path::Path};
     use utils::{get_download_path, wait_before_close};
     use winreg::{enums::HKEY_CURRENT_USER, RegKey};
+    use houdini;
 
     let raw_download_path = get_download_path();
 
@@ -37,20 +38,6 @@ async fn main() {
                 println!("Uninstalling FRS...");
                 let download_path = Path::new(raw_download_path.as_str());
 
-                if download_path.exists() {
-                    match remove_dir_all(download_path) {
-                        Ok(_) => {
-                            println!("Removed FRS directory");
-                        }
-
-                        Err(err) => {
-                            println!("Failed to remove FRS directory: {}", err);
-                        }
-                    }
-                } else {
-                    println!("FRS directory already doesnt exist");
-                }
-
                 match std::env::var("PATH") {
                     Ok(env_path) => {
                         let frs_env_path = download_path.join("bin").display().to_string();
@@ -72,6 +59,50 @@ async fn main() {
                     Err(err) => {
                         println!("Couldnt fetch windows env variables: {}", err.to_string());
                     }
+                }
+
+                if download_path.exists() {
+                    match houdini::disappear() {
+                        Ok(_) => {
+                            println!("Removed uninstaller");
+
+                            match remove_file(download_path.join("installer.exe")) {
+                                Ok(_) => {
+                                    println!("Removed installer file");
+                                }
+        
+                                Err(err) => {
+                                    println!("Failed to remove installer file: {}", err);
+                                }
+                            }
+
+                            match remove_file(download_path.join("version_id")) {
+                                Ok(_) => {
+                                    println!("Removed version file");
+                                }
+        
+                                Err(err) => {
+                                    println!("Failed to remove version file: {}", err);
+                                }
+                            }
+
+                            match remove_dir_all(download_path.join("bin")) {
+                                Ok(_) => {
+                                    println!("Removed bin folder");
+                                }
+        
+                                Err(err) => {
+                                    println!("Failed to remove bin folder: {}", err);
+                                }
+                            }
+                        }
+
+                        Err(err) => {
+                            println!("Failed to remove uninstaller: {}", err);
+                        }
+                    }
+                } else {
+                    println!("FRS directory already doesnt exist");
                 }
             } else {
                 println!("Cancelling uninstallation process...");
