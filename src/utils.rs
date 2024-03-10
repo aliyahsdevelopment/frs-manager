@@ -2,17 +2,14 @@
 pub fn get_download_path() -> Result<String, String> {
     use std::path::Path;
     
-    match std::env::var("ProgramFiles") {
-        Ok(program_files_path) => {
-            return Ok(Path::new(program_files_path.as_str())
-                .join("FRS_Manager")
-                .display()
-                .to_string());
-        }
+    return match std::env::var("ProgramFiles") {
+        Ok(program_files_path) => Ok(Path::new(program_files_path.as_str())
+            .join("FRS_Manager")
+            .display()
+            .to_string()
+        ),
 
-        Err(err) => {
-            return Err(err.to_string());
-        }
+        Err(err) => Err(err.to_string())
     };
 }
 

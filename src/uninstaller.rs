@@ -42,11 +42,11 @@ async fn main() {
                     Ok(env_path) => {
                         let frs_env_path = download_path.join("bin").display().to_string();
                         
-                        if env_path.contains(frs_env_path.as_str()) == true {
-                            let splits = env_path.split(";");
+                        if env_path.contains(frs_env_path.as_str()) {
+                            let splits = env_path.split(';');
 
                             let filtered = splits.filter(|&s| s != frs_env_path.as_str());
-                            let joined = filtered.map(|x| x).collect::<Vec<&str>>().join(";");
+                            let joined = filtered.collect::<Vec<&str>>().join(";");
                             let hkcu = RegKey::predef(HKEY_CURRENT_USER);
                             let (env, _) = hkcu.create_subkey("Environment").unwrap();
                             env.set_value("Path", &joined).unwrap();
@@ -57,7 +57,7 @@ async fn main() {
                     }
             
                     Err(err) => {
-                        println!("Couldnt fetch windows env variables: {}", err.to_string());
+                        println!("Couldnt fetch windows env variables: {}", err);
                     }
                 }
 

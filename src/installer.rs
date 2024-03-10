@@ -25,7 +25,7 @@ fn update_env_path(download_path: &Path) {
         Ok(env_path) => {
             let frs_env_path = download_path.join("bin").display().to_string();
 
-            if env_path.contains(frs_env_path.as_str()) == false {
+            if !env_path.contains(frs_env_path.as_str()) {
                 let new_env_path = format!("{};{}", frs_env_path, env_path);
                 let hkcu = RegKey::predef(HKEY_CURRENT_USER);
                 let (env, _) = hkcu.create_subkey("Environment").unwrap();
@@ -37,7 +37,7 @@ fn update_env_path(download_path: &Path) {
         }
 
         Err(err) => {
-            println!("Couldnt fetch windows env variables: {}", err.to_string());
+            println!("Couldnt fetch windows env variables: {}", err);
         }
     };
 }
@@ -80,53 +80,39 @@ async fn get_download_data() -> Result<DownloadData, String> {
                                             json.assets.clone().into_iter().find(|a| a.name == "uninstaller.exe");
         
                                         match uninstaller_exe_asset {
-                                            Some(uninstaller_exe_asset) => {
-                                                return Ok(DownloadData {
-                                                    frs_exe: frs_exe_asset.browser_download_url,
-                                                    installer_exe: installer_exe_asset.browser_download_url,
-                                                    uninstaller_exe: uninstaller_exe_asset.browser_download_url,
-                                                    version: json.id,
-                                                });
-                                            }
+                                            Some(uninstaller_exe_asset) => Ok(DownloadData {
+                                                frs_exe: frs_exe_asset.browser_download_url,
+                                                installer_exe: installer_exe_asset.browser_download_url,
+                                                uninstaller_exe: uninstaller_exe_asset.browser_download_url,
+                                                version: json.id,
+                                            }),
 
-                                            None => {
-                                                return Err(String::from(
-                                                    "Could not find uninstaller in assets list",
-                                                ));
-                                            }
+                                            None => Err(String::from(
+                                                "Could not find uninstaller in assets list",
+                                            ))
                                         }
                                     }
 
-                                    None => {
-                                        return Err(String::from(
-                                            "Could not find installer in assets list",
-                                        ));
-                                    }
+                                    None => Err(String::from(
+                                        "Could not find installer in assets list",
+                                    ))
                                 }
                             }
 
-                            None => {
-                                return Err(String::from(
-                                    "Could not find frs in assets list",
-                                ));
-                            }
+                            None => Err(String::from(
+                                "Could not find frs in assets list",
+                            ))
                         }
                     }
 
-                    Err(err) => {
-                        return Err(err.to_string());
-                    }
+                    Err(err) => Err(err.to_string())
                 },
 
-                Err(err) => {
-                    return Err(err.to_string());
-                }
+                Err(err) => Err(err.to_string())
             }
         }
 
-        Err(err) => {
-            return Err(err.to_string());
-        }
+        Err(err) => Err(err.to_string())
     }
 }
 
@@ -153,7 +139,7 @@ async fn main() {
                     let download_path = Path::new(raw_download_path.as_str());
                     let bin_path = download_path.join("bin");
 
-                    if download_path.exists() == false {
+                    if !download_path.exists() {
                         create_dir(download_path)
                             .await
                             .expect("Couldnt create download path");
@@ -162,7 +148,7 @@ async fn main() {
                         println!("Folder already exists");
                     }
 
-                    if bin_path.clone().exists() == false {
+                    if !bin_path.clone().exists() {
                         create_dir(bin_path.clone())
                             .await
                             .expect("Couldnt create bin path");
@@ -172,7 +158,7 @@ async fn main() {
                     }
 
                     let version_id_path = download_path.join("version_id");
-                    if version_id_path.exists() == false {
+                    if !version_id_path.exists() {
                         let version_file = File::create(version_id_path.clone());
                         match version_file {
                             Ok(mut version_file) => {
@@ -207,7 +193,7 @@ async fn main() {
                     let installer_path = download_path.join("installer.exe");
                     let uninstaller_path = download_path.join("uninstaller.exe");
 
-                    if frs_path.exists() == false || current_version_value != download_data.version {
+                    if !frs_path.exists() || current_version_value != download_data.version {
                         match reqwest::get(download_data.frs_exe).await {
                             Ok(frs_exe_data) => match frs_exe_data.bytes().await {
                                 Ok(frs_exe_data_bytes) => {
@@ -248,7 +234,7 @@ async fn main() {
                         println!("Version matches & frs exe already exists, no need to update the file")
                     }
 
-                    if installer_path.exists() == false || current_version_value != download_data.version {
+                    if !installer_path.exists() || current_version_value != download_data.version {
                         match reqwest::get(download_data.installer_exe).await {
                             Ok(installer_exe_data) => match installer_exe_data.bytes().await {
                                 Ok(installer_exe_data_bytes) => {
@@ -289,7 +275,7 @@ async fn main() {
                         println!("Version matches & installer exe already exists, no need to update the file")
                     }
 
-                    if uninstaller_path.exists() == false || current_version_value != download_data.version {
+                    if !uninstaller_path.exists() || current_version_value != download_data.version {
                         match reqwest::get(download_data.uninstaller_exe).await {
                             Ok(uninstaller_exe_data) => match uninstaller_exe_data.bytes().await {
                                 Ok(uninstaller_exe_data_bytes) => {
