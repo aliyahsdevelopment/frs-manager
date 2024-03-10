@@ -4,6 +4,7 @@ use std::io::{prelude::*, Cursor};
 use std::process::Command;
 use std::{fs::File, path::Path};
 use tokio::fs::create_dir;
+#[cfg(target_os = "windows")]
 use winreg::{enums::HKEY_CURRENT_USER, RegKey};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -56,6 +57,9 @@ fn update_env_path(download_path: &Path) {
         }
     };
 }
+
+#[cfg(not(target_os = "windows"))]
+fn update_env_path(download_path: &Path) {}
 
 #[tokio::main]
 async fn main() {
