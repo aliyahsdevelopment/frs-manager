@@ -1,14 +1,15 @@
 #[cfg(target_os = "windows")]
 mod utils;
+#[cfg(target_os = "windows")]
 mod models;
-
-use std::path::Path;
-use tokio::fs::create_dir;
-use crate::utils::{get_download_path, wait_before_close, get_download_data, update_version_file, get_version_value, write_file_from_link, add_env_var};
 
 #[tokio::main]
 #[cfg(target_os = "windows")]
 pub async fn main() {
+    use std::path::Path;
+    use tokio::fs::create_dir;
+    use crate::utils::{get_download_path, wait_before_close, get_download_data, update_version_file, get_version_value, write_file_from_link, add_env_var};
+    
     let download_data = get_download_data().await;
     let raw_download_path = get_download_path();
 
