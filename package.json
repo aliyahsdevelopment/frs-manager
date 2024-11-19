@@ -1,0 +1,58 @@
+{
+  "name": "fivem-resource-manager",
+  "version": "2.0.5",
+  "description": "This is a CLI made for simplifying the process of creating & managing resources.",
+  "type": "module",
+  "bin": {
+    "fivemresource": "dist/index.js",
+    "frc": "dist/index.cjs",
+    "frs": "dist/index.cjs"
+  },
+  "scripts": {
+    "build": "node build.cjs",
+    "format:check": "eslint && prettier -c .",
+    "format:write": "eslint --fix && prettier -w .",
+    "lint:check": "pnpm format:check",
+    "lint:write": "pnpm format:write",
+    "prepare": "husky"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Z3rio/frs-manager.git"
+  },
+  "keywords": [
+    "fivem",
+    "cli",
+    "resource",
+    "qbcore",
+    "esx",
+    "react",
+    "svelte",
+    "vue"
+  ],
+  "author": "Zerio",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/Z3rio/frs-manager/issues"
+  },
+  "homepage": "https://github.com/Z3rio/frs-manager#readme",
+  "dependencies": {
+    "@inquirer/prompts": "^7.1.0",
+    "minimist": "^1.2.8",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "@types/minimist": "^1.2.5",
+    "@types/node": "^22.9.0",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.15.0",
+    "globals": "^15.12.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.15.0"
+  }
+}
