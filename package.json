@@ -1,5 +1,5 @@
 {
-  "name": "fivem-resource-manager",
+  "name": "frs-manager",
   "version": "2.0.5",
   "description": "This is a CLI made for simplifying the process of creating & managing resources.",
   "type": "module",
