@@ -1,11 +1,8 @@
 build:
-	cargo build
-
-release:
-	cargo build --release
+	pnpm build
 
 lint:
-	cargo check
+	pnpm format:check
 
 lintfix:
-	cargo fmt --all -- --check
+	pnpm format:write
