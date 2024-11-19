@@ -1,6 +1,4 @@
-![Logo](https://raw.githubusercontent.com/Z3rio/frs-manager/main/logo.png)
-
-# FiveM Resource CLI
+# FiveM Resource Manager
 
 [**NPM Package Link**](https://www.npmjs.com/package/frs-manager)
 
