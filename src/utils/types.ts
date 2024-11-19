@@ -61,3 +61,13 @@ export type QuickAction = (data: {
   uiLanguage: "ts" | "js" | undefined;
   projPath: string;
 }) => boolean;
+
+export interface Config {
+  name: string;
+  tasks?: string[];
+  ignore?: string[];
+}
+
+export interface DataRecord {
+  version: string;
+}
