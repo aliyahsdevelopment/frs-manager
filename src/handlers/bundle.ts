@@ -63,7 +63,7 @@ const handler: CommandHandler = async args => {
     writeFileSync(dataFilePath, "{}");
   }
 
-  console.log("")
+  console.log("");
 
   try {
     const rawData = readFileSync(dataFilePath, "utf8");

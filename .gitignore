@@ -139,3 +139,6 @@ dist
 
 # macos file system
 .DS_Store
+
+# bundle data file, for when developing/testing
+data.json
