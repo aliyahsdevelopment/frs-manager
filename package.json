@@ -4,7 +4,7 @@
   "description": "This is a CLI made for simplifying the process of creating & managing resources.",
   "type": "module",
   "bin": {
-    "fivemresource": "dist/index.js",
+    "fivemresource": "dist/index.cjs",
     "frc": "dist/index.cjs",
     "frs": "dist/index.cjs"
   },
