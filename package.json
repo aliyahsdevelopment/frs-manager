@@ -1,6 +1,6 @@
 {
   "name": "frs-manager",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "This is a CLI made for simplifying the process of creating & managing resources.",
   "type": "module",
   "bin": {
