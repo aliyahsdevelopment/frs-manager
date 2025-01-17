@@ -1,7 +1,7 @@
 import { File } from "../../../utils/types.js";
 
 const data: File = {
-  name: "server/functions.ts",
+  name: "server/functions.lua",
   content: `-- Compatibility for old ESX versions
 if ESX == nil then
     TriggerEvent("esx:getSharedObject", function(obj) ESX = obj end)
